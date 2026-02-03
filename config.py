@@ -41,11 +41,13 @@ KEYWORDS = {
 }
 
 # 微信推送配置
+import os
+
 WECHAT_CONFIG = {
     # 方式1: Server酱 (推荐，简单易用)
     'serverchan': {
         'enabled': True,
-        'sendkey': 'SCT312763TuQVpQPBUT8ob4bekUdVbCB1s',  # 从 https://sct.ftqq.com/ 获取
+        'sendkey': os.environ.get('SERVERCHAN_KEY', 'SCT312763TuQVpQPBUT8ob4bekUdVbCB1s'),  # 从 https://sct.ftqq.com/ 获取
     },
 
     # 方式2: 企业微信机器人

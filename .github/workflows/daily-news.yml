@@ -29,10 +29,7 @@ jobs:
     - name: Run news collector
       env:
         SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
-      run: |
-        # 更新config.py中的SendKey
-        sed -i "s/YOUR_SERVERCHAN_KEY/$SERVERCHAN_KEY/g" config.py
-        python main.py run
+      run: python main.py run
 
     - name: Upload logs
       if: always()
