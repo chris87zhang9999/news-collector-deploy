@@ -1,0 +1,7 @@
+feedparser>=6.0.10
+requests>=2.31.0
+python-dateutil>=2.8.2
+schedule>=1.2.0
+
+# 可选依赖
+# openai>=1.0.0  # 如果需要AI摘要功能，取消注释此行
