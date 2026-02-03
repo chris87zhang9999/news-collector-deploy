@@ -31,14 +31,7 @@ jobs:
         SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
       run: |
         # 更新config.py中的SendKey
-        python -c "
-import os
-with open('config.py', 'r', encoding='utf-8') as f:
-    content = f.read()
-content = content.replace('YOUR_SERVERCHAN_KEY', os.environ['SERVERCHAN_KEY'])
-with open('config.py', 'w', encoding='utf-8') as f:
-    f.write(content)
-"
+        sed -i "s/YOUR_SERVERCHAN_KEY/$SERVERCHAN_KEY/g" config.py
         python main.py run
 
     - name: Upload logs
