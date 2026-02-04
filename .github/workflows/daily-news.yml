@@ -3,6 +3,7 @@ name: Daily News Collection
 on:
   schedule:
     # 每天北京时间20:00执行（UTC时间12:00）
+    # 注意：GitHub Actions可能会延迟1-3小时，实际推送时间可能在21:00-23:00之间
     - cron: '0 12 * * *'
 
   # 也可以手动触发
