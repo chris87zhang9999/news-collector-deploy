@@ -18,13 +18,22 @@ class NewsSummarizer:
         if self.enabled:
             try:
                 import openai
-                self.client = openai.OpenAI(api_key=AI_CONFIG.get('api_key'))
+                api_key = AI_CONFIG.get('api_key')
+                base_url = AI_CONFIG.get('base_url')
+
+                if base_url:
+                    # 使用自定义base_url（智谱AI、Deepseek等）
+                    self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
+                else:
+                    # 使用OpenAI官方
+                    self.client = openai.OpenAI(api_key=api_key)
+
                 logger.info("AI摘要功能已启用")
             except ImportError:
                 logger.warning("未安装openai库，AI摘要功能将禁用")
                 self.enabled = False
             except Exception as e:
-                logger.error(f"初始化OpenAI客户端失败: {e}")
+                logger.error(f"初始化AI客户端失败: {e}")
                 self.enabled = False
 
     def summarize_news(self, news: Dict) -> str:

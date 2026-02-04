@@ -64,11 +64,28 @@ SCHEDULE_CONFIG = {
 }
 
 # AI 摘要配置 (可选)
+import os
+
 AI_CONFIG = {
-    'enabled': False,
-    'model': 'gpt-3.5-turbo',  # 或使用其他模型
-    'api_key': 'YOUR_OPENAI_API_KEY',
-    'max_summary_length': 200,  # 摘要最大字数
+    'enabled': True,
+
+    # 选择你的AI服务
+    # 方案1: 智谱AI（推荐，国内访问快）
+    'base_url': 'https://open.bigmodel.cn/api/paas/v4/',
+    'model': 'glm-4-flash',  # 免费模型
+    'api_key': os.environ.get('OPENAI_API_KEY', 'YOUR_AI_API_KEY'),
+
+    # 方案2: Deepseek
+    # 'base_url': 'https://api.deepseek.com',
+    # 'model': 'deepseek-chat',
+    # 'api_key': os.environ.get('OPENAI_API_KEY', 'YOUR_AI_API_KEY'),
+
+    # 方案3: OpenAI官方
+    # 'base_url': None,  # 使用默认
+    # 'model': 'gpt-3.5-turbo',
+    # 'api_key': os.environ.get('OPENAI_API_KEY', 'YOUR_AI_API_KEY'),
+
+    'max_summary_length': 300,  # 摘要最大字数
 }
 
 # 数据存储

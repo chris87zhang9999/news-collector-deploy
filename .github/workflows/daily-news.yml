@@ -30,6 +30,7 @@ jobs:
     - name: Run news collector
       env:
         SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: python main.py run
 
     - name: Upload logs
