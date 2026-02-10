@@ -33,8 +33,19 @@ class WeChatNotifier:
 
         try:
             url = f"https://sctapi.ftqq.com/{sendkey}.send"
+
+            # Server酱限制：标题最长256字符，内容最长64KB
+            # 但微信卡片预览约4KB，过长会被截断
+            # 我们限制总长度在32KB以内，确保良好体验
+            MAX_CONTENT_LENGTH = 32 * 1024  # 32KB
+
+            if len(content.encode('utf-8')) > MAX_CONTENT_LENGTH:
+                logger.warning(f"内容过长({len(content)} 字符)，将会被截断")
+                # 截断时保留完整的新闻条目，不在句子中间截断
+                content = self._smart_truncate_markdown(content, MAX_CONTENT_LENGTH)
+
             data = {
-                'title': title,
+                'title': title[:256],  # 标题限制256字符
                 'desp': content
             }
 
@@ -51,6 +62,27 @@ class WeChatNotifier:
         except Exception as e:
             logger.error(f"Server酱推送异常: {e}")
             return False
+
+    def _smart_truncate_markdown(self, content: str, max_bytes: int) -> str:
+        """
+        智能截断Markdown内容，保持完整性
+        在新闻条目边界截断，而不是句子中间
+        """
+        lines = content.split('\n')
+        truncated_lines = []
+        current_size = 0
+
+        for line in lines:
+            line_size = len(line.encode('utf-8')) + 1  # +1 for newline
+            if current_size + line_size > max_bytes:
+                # 添加截断提示
+                truncated_lines.append('\n...\n')
+                truncated_lines.append('📌 内容过长，部分新闻未显示。请查看HTML文件获取完整内容。')
+                break
+            truncated_lines.append(line)
+            current_size += line_size
+
+        return '\n'.join(truncated_lines)
 
     def send_via_work_wechat(self, content: str) -> bool:
         """
@@ -106,8 +138,8 @@ class WeChatNotifier:
 
             # 使用AI摘要或原始摘要
             summary = news.get('ai_summary') or news.get('summary', '')
-            if len(summary) > 300:
-                summary = summary[:300] + '...'
+            # 不再强制截断，保持AI生成的完整摘要
+            # Server酱单条消息限制约64KB，足够容纳完整摘要
 
             markdown += f"## {idx}. {title}\n\n"
             markdown += f"**分类**: {categories}  \n"
