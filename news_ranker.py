@@ -169,7 +169,7 @@ class NewsRanker:
 
         # 包含具体数据/细节
         has_numbers = bool(re.search(r'\d+', summary))
-        has_quotes = bool(re.search(r'["""\'\'']', summary))
+        has_quotes = bool(re.search(r'["\'\u201c\u201d]', summary))  # 检测引号
 
         if has_numbers:
             score *= 1.1  # 有具体数据
