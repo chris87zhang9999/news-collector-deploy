@@ -85,7 +85,7 @@ AI_CONFIG = {
     # 'model': 'gpt-3.5-turbo',
     # 'api_key': os.environ.get('OPENAI_API_KEY', 'YOUR_AI_API_KEY'),
 
-    'max_summary_length': 300,  # 摘要最大字数
+    'max_summary_length': 400,  # 摘要最大字数（增加灵活性）
 }
 
 # 数据存储
