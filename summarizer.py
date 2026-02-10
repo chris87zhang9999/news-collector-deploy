@@ -51,11 +51,15 @@ class NewsSummarizer:
             content = news.get('summary', '')
 
             prompt = f"""
-请用中文总结以下新闻，要求：
-1. 简明扼要，不超过{AI_CONFIG.get('max_summary_length', 200)}字
-2. 突出重点和关键信息
-3. 如果是美股新闻，重点说明市场波动原因
-4. 如果是AI新闻，重点说明技术突破或应用
+请用生动有趣的中文总结以下新闻，要求：
+1. 不超过{AI_CONFIG.get('max_summary_length', 200)}字
+2. 用通俗易懂、口语化的表达，像给朋友讲故事一样
+3. 可以使用恰当的比喻、类比让内容更生动
+4. 突出有趣的细节和关键数据
+5. 如果是美股新闻：用大白话解释市场波动原因，说人话，别用太多专业术语
+6. 如果是AI新闻：重点说这个技术能干什么、为什么厉害、对普通人有什么影响
+7. 开头可以用一句话hook住读者（例如："又涨了！"、"这下厉害了"、"意想不到"等）
+8. 适当使用emoji让内容更轻松（但不要过多，1-2个即可）
 
 标题: {title}
 内容: {content}
@@ -64,11 +68,11 @@ class NewsSummarizer:
             response = self.client.chat.completions.create(
                 model=AI_CONFIG.get('model', 'gpt-3.5-turbo'),
                 messages=[
-                    {"role": "system", "content": "你是一个专业的新闻摘要助手。"},
+                    {"role": "system", "content": "你是一个幽默风趣的新闻解说员，擅长用轻松有趣的方式讲解新闻，让读者既能get到重点又觉得好玩。"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=300,
-                temperature=0.3
+                max_tokens=400,
+                temperature=0.7
             )
 
             summary = response.choices[0].message.content.strip()
