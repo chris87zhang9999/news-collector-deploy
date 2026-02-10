@@ -26,6 +26,8 @@ class NewsRanker:
             'Science': 1.5,
             'TechCrunch': 1.2,
             'Wired': 1.2,
+            'The Verge': 1.2,  # 新增
+            'Ars Technica': 1.3,  # 新增
         }
 
         # 关键词重要性权重
