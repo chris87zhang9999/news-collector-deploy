@@ -59,12 +59,33 @@ class NewsCollectorApp:
             # 2. 排序和筛选
             logger.info("步骤 2/5: 对新闻进行排序和筛选...")
             max_count = SCHEDULE_CONFIG.get('max_news_count', 10)
-            top_news = self.ranker.diversify_selection(
-                self.ranker.rank_news(news_list, top_n=max_count * 2),
-                top_n=max_count
-            )
 
-            logger.info(f"筛选出 {len(top_news)} 条高质量新闻")
+            # 先排序，获取足够多的新闻
+            ranked_news = self.ranker.rank_news(news_list, top_n=max_count * 3)
+
+            # 如果新闻数量不足，记录警告
+            if len(ranked_news) < max_count:
+                logger.warning(f"收集到的新闻数量({len(ranked_news)})少于目标数量({max_count})")
+                top_news = ranked_news
+            else:
+                # 在排名靠前的新闻中选择多样性，但确保数量达到max_count
+                top_news = self.ranker.diversify_selection(ranked_news, top_n=max_count)
+
+                # 如果多样性选择后数量不足，补充高分新闻
+                if len(top_news) < max_count:
+                    logger.info(f"多样性选择后只有 {len(top_news)} 条，补充剩余新闻")
+                    remaining_needed = max_count - len(top_news)
+                    selected_links = {news['link'] for news in top_news}
+                    for news in ranked_news:
+                        if news['link'] not in selected_links:
+                            top_news.append(news)
+                            if len(top_news) >= max_count:
+                                break
+
+                # 最终按分数排序，确保降序
+                top_news = sorted(top_news, key=lambda x: x.get('score', 0), reverse=True)[:max_count]
+
+            logger.info(f"最终筛选出 {len(top_news)} 条高质量新闻")
 
             # 3. 生成摘要
             logger.info("步骤 3/5: 生成新闻摘要...")
