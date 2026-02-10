@@ -64,6 +64,7 @@ class MarketAnalyzer:
                 'sectors': {},
                 'top_gainers': [],
                 'top_losers': [],
+                'earnings_calendar': [],  # 财报日历
                 'date': datetime.now().strftime('%Y-%m-%d')
             }
 
@@ -158,6 +159,10 @@ class MarketAnalyzer:
                 market_data['top_gainers'] = stock_changes[:3]
                 market_data['top_losers'] = stock_changes[-3:]
 
+            # 获取财报日历（未来2周内的财报）
+            logger.info("获取财报日历...")
+            market_data['earnings_calendar'] = self._get_earnings_calendar(hot_stocks)
+
             return market_data
 
         except ImportError:
@@ -166,6 +171,61 @@ class MarketAnalyzer:
         except Exception as e:
             logger.error(f"获取市场数据失败: {e}")
             return None
+
+    def _get_earnings_calendar(self, stocks: Dict) -> List[Dict]:
+        """获取未来2周内的财报日历"""
+        try:
+            import yfinance as yf
+            import time
+            from datetime import timedelta
+
+            earnings_list = []
+            today = datetime.now()
+            two_weeks_later = today + timedelta(days=14)
+
+            for name, symbol in stocks.items():
+                try:
+                    ticker = yf.Ticker(symbol)
+
+                    # 获取公司信息
+                    info = ticker.info
+
+                    # 尝试从calendar获取财报日期
+                    calendar = ticker.calendar
+                    if calendar is not None and 'Earnings Date' in calendar:
+                        earnings_date = calendar['Earnings Date']
+
+                        # 如果是DataFrame或Series，取第一个值
+                        if hasattr(earnings_date, 'iloc'):
+                            earnings_date = earnings_date.iloc[0] if len(earnings_date) > 0 else None
+
+                        # 检查日期是否在未来2周内
+                        if earnings_date and earnings_date < two_weeks_later:
+                            earnings_list.append({
+                                'name': name,
+                                'symbol': symbol,
+                                'date': earnings_date.strftime('%Y-%m-%d') if hasattr(earnings_date, 'strftime') else str(earnings_date),
+                                'market_cap': info.get('marketCap', 0),
+                                'forward_pe': info.get('forwardPE', None),
+                                'price': info.get('currentPrice', 0),
+                                'analyst_target': info.get('targetMeanPrice', None),
+                                'recommendation': info.get('recommendationKey', 'hold')
+                            })
+                            logger.info(f"  {name} 财报日期: {earnings_date}")
+
+                    time.sleep(0.5)  # 避免限流
+
+                except Exception as e:
+                    logger.warning(f"获取{name}财报信息失败: {e}")
+                    time.sleep(1)
+
+            # 按财报日期排序
+            earnings_list.sort(key=lambda x: x['date'])
+            return earnings_list
+
+        except Exception as e:
+            logger.error(f"获取财报日历失败: {e}")
+            return []
 
     def generate_market_analysis(self, market_data: Dict) -> Optional[str]:
         """生成市场分析报告"""
@@ -181,41 +241,62 @@ class MarketAnalyzer:
             data_summary = self._format_market_data(market_data)
 
             prompt = f"""
-你是一位资深的美股市场分析师，请基于今日市场数据撰写一份专业的市场分析报告。
+你是一位资深的美股市场分析师，拥有深刻的宏观经济洞察力和基本面分析能力。请基于今日市场数据撰写一份专业且深入的市场分析报告。
 
 【今日市场数据】
 {data_summary}
 
 【撰写要求】
-请按以下结构完整输出分析报告（约500-600字）：
+请按以下结构完整输出分析报告（约700-800字）：
 
 **📊 市场概况**
 - 用2-3句话概括今日三大指数的整体表现
-- 特别说明VIX恐慌指数的变化（如市场情绪）
-- 成交量是否异常
+- 特别说明VIX恐慌指数的变化及其反映的市场情绪
+- 成交量是否异常，资金流向特征
 
-**🔍 板块分析**
-- 列出表现最好和最差的3个板块
-- 分析板块异动的可能原因（如政策、财报、行业事件）
-- 板块轮动趋势判断
+**🔍 深度原因分析（重点）**
+- **根本驱动因素**：不要只说"财报超预期"或"数据利好"等表面原因
+  - 如果是财报驱动，分析：哪些业务线增长？利润率变化？管理层指引？行业竞争格局变化？
+  - 如果是宏观数据，分析：对美联储政策的影响？对企业盈利预期的影响？流动性环境变化？
+  - 如果是地缘政治，分析：供应链影响？能源价格传导？避险情绪的持续性？
+- **市场情绪与预期差**：市场交易的是什么预期？与共识的差异在哪？
+- **资金流向逻辑**：为什么资金流入/流出某些板块？背后的配置逻辑是什么？
 
-**🏢 个股异动**
-- 分析涨幅最大的2-3只个股及原因
-- 分析跌幅最大的2-3只个股及原因
-- 是否有突发事件或财报驱动
+**🏢 板块与个股异动**
+- 列出表现最好和最差的3个板块，深入分析：
+  - 板块异动的产业逻辑（不只是政策，而是产业周期、竞争格局、技术迭代等）
+  - 是短期情绪还是长期趋势的开始？
+- 个股异动分析（涨跌幅最大的2-3只）：
+  - 公司基本面发生了什么变化？
+  - 估值是否合理？市场定价的逻辑是什么？
 
-**💡 投资建议**
-- **短期（1-2周）**：技术面分析，阻力位/支撑位，短线交易策略
-- **中长期（1-3月）**：基本面分析，配置建议，风险提示
-- 具体的仓位管理建议（如降低/提升股票仓位）
+**📅 财报季前瞻（如有财报数据）**
+- 列出未来2周即将公布财报的重点公司
+- 对每家公司进行预判：
+  - **业绩预期**：基于最近行业趋势、公司指引、分析师共识，预计业绩如何？
+  - **关键看点**：投资者最关注哪些指标？（如云业务增长、AI芯片出货、用户增长、利润率等）
+  - **风险与机会**：可能超预期/不及预期的因素是什么？
+  - **股价影响**：如果业绩符合预期，股价会如何反应？（考虑当前估值和市场预期）
 
-【注意事项】
-- 保持客观理性，避免过度乐观或悲观
-- 数据解读要准确，逻辑链条清晰
-- 建议要具体可操作，不要泛泛而谈
-- 必须完整输出所有部分，不要截断
+**💡 投资建议（具体可操作）**
+- **短期策略（1-2周）**：
+  - 技术面：关键支撑位/阻力位，成交量特征
+  - 事件驱动：即将公布的重要数据/财报，如何布局？
+  - 仓位管理：建议提升/降低仓位的具体比例和条件
+- **中长期策略（1-3月）**：
+  - 基本面配置：看好哪些板块？为什么？（基于产业趋势、估值、政策等）
+  - 风险对冲：需要关注的风险点，如何配置防御性资产？
+  - 具体标的：如果要配置，重点关注哪些公司？为什么？
 
-请直接输出分析报告，使用清晰的小标题（如📊、🔍等）分隔。
+【分析原则】
+1. **追根溯源**：不要停留在表面现象，要层层深入找到根本原因
+2. **数据支撑**：结合具体的估值、增长率、利润率等数据说话
+3. **逻辑链条**：清晰地展示"因为A→所以B→因此C"的分析逻辑
+4. **预期管理**：明确区分"已经反映在股价中的"和"尚未定价的"
+5. **客观理性**：避免过度乐观或悲观，承认不确定性
+6. **可执行性**：建议要具体，有明确的触发条件和操作方式
+
+请直接输出分析报告，使用清晰的小标题（如📊、🔍等）分隔，确保每个部分都完整、深入、有价值。
 """
 
             response = self.client.chat.completions.create(
@@ -223,11 +304,11 @@ class MarketAnalyzer:
                 messages=[
                     {
                         "role": "system",
-                        "content": "你是一位拥有15年经验的美股市场分析师，曾在高盛和摩根士丹利工作。你擅长解读市场数据，提供清晰、专业、可操作的投资建议。你的分析报告逻辑严密，数据驱动，同时通俗易懂。"
+                        "content": "你是一位拥有20年经验的美股首席策略师，曾在高盛、摩根士丹利、桥水基金担任要职。你不仅精通技术分析和基本面分析，更擅长追溯市场波动的深层逻辑——从宏观经济周期、产业竞争格局、公司战略变化到市场预期管理。你的分析报告以"深度"著称：不满足于表面现象，而是层层剖析，直击本质。你善于用清晰的逻辑链条、具体的数据和可操作的建议帮助投资者做出明智决策。"
                     },
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1000,
+                max_tokens=1500,  # 增加到1500以支持更长的深度分析
                 temperature=0.7
             )
 
@@ -263,6 +344,15 @@ class MarketAnalyzer:
         lines.append("\n【个股跌幅榜】")
         for stock in market_data.get('top_losers', []):
             lines.append(f"  {stock['name']} ({stock['symbol']}): ${stock['price']} ({stock['change_pct']:+.2f}%)")
+
+        # 财报日历
+        earnings = market_data.get('earnings_calendar', [])
+        if earnings:
+            lines.append("\n【未来2周财报日历】")
+            for earn in earnings:
+                target_info = f", 分析师目标价: ${earn['analyst_target']:.2f}" if earn.get('analyst_target') else ""
+                pe_info = f", 预期PE: {earn['forward_pe']:.1f}" if earn.get('forward_pe') else ""
+                lines.append(f"  {earn['date']} - {earn['name']} ({earn['symbol']}): 当前价 ${earn['price']:.2f}{target_info}{pe_info}, 评级: {earn.get('recommendation', 'N/A')}")
 
         return '\n'.join(lines)
 
