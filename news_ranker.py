@@ -16,18 +16,30 @@ class NewsRanker:
     def __init__(self):
         # 高质量来源权重
         self.source_weights = {
+            # 顶级财经媒体
             'Bloomberg': 1.5,
             'Reuters': 1.5,
-            'CNBC': 1.3,
             'Financial Times': 1.5,
             'Wall Street Journal': 1.5,
+            'Barron': 1.4,
+
+            # 主流财经媒体
+            'CNBC': 1.3,
+            'MarketWatch': 1.3,
+            'Seeking Alpha': 1.35,  # 专业投资分析
+            'Investor Business Daily': 1.3,
+
+            # 顶级科技/学术媒体
             'MIT Technology Review': 1.4,
             'Nature': 1.5,
             'Science': 1.5,
-            'TechCrunch': 1.2,
-            'Wired': 1.2,
-            'The Verge': 1.2,  # 新增
-            'Ars Technica': 1.3,  # 新增
+
+            # 主流科技媒体
+            'TechCrunch': 1.25,
+            'The Verge': 1.25,
+            'Ars Technica': 1.3,
+            'Wired': 1.25,
+            'VentureBeat': 1.3,  # AI专注
         }
 
         # 关键词重要性权重

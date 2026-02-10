@@ -14,6 +14,7 @@ from news_ranker import NewsRanker
 from summarizer import NewsSummarizer
 from wechat_notifier import WeChatNotifier
 from html_generator import HTMLGenerator
+from market_analyzer import MarketAnalyzer
 from config import DATA_DIR, CACHE_FILE, LOG_FILE, SCHEDULE_CONFIG
 
 # 设置日志
@@ -38,6 +39,7 @@ class NewsCollectorApp:
         self.summarizer = NewsSummarizer()
         self.notifier = WeChatNotifier()
         self.html_gen = HTMLGenerator()
+        self.market_analyzer = MarketAnalyzer()
 
     def run_daily_task(self):
         """执行每日新闻收集任务"""
@@ -46,59 +48,77 @@ class NewsCollectorApp:
         logger.info("=" * 60)
 
         try:
-            # 1. 收集新闻
-            logger.info("步骤 1/5: 收集新闻...")
+            # 1. 生成市场分析（第一条）
+            logger.info("步骤 1/6: 生成市场分析报告...")
+            market_analysis = self.market_analyzer.create_market_news_item()
+
+            # 2. 收集新闻
+            logger.info("步骤 2/6: 收集新闻...")
             news_list = self.collector.collect_news()
 
             if not news_list:
                 logger.warning("未收集到任何新闻")
-                return
-
-            logger.info(f"收集到 {len(news_list)} 条新闻")
-
-            # 2. 排序和筛选
-            logger.info("步骤 2/5: 对新闻进行排序和筛选...")
-            max_count = SCHEDULE_CONFIG.get('max_news_count', 10)
-
-            # 先排序，获取足够多的新闻
-            ranked_news = self.ranker.rank_news(news_list, top_n=max_count * 3)
-
-            # 如果新闻数量不足，记录警告
-            if len(ranked_news) < max_count:
-                logger.warning(f"收集到的新闻数量({len(ranked_news)})少于目标数量({max_count})")
-                top_news = ranked_news
+                # 即使没有新闻，也可以发送市场分析
+                if market_analysis:
+                    top_news = [market_analysis]
+                else:
+                    return
             else:
-                # 在排名靠前的新闻中选择多样性，但确保数量达到max_count
-                top_news = self.ranker.diversify_selection(ranked_news, top_n=max_count)
+                logger.info(f"收集到 {len(news_list)} 条新闻")
 
-                # 如果多样性选择后数量不足，补充高分新闻
-                if len(top_news) < max_count:
-                    logger.info(f"多样性选择后只有 {len(top_news)} 条，补充剩余新闻")
-                    remaining_needed = max_count - len(top_news)
-                    selected_links = {news['link'] for news in top_news}
-                    for news in ranked_news:
-                        if news['link'] not in selected_links:
-                            top_news.append(news)
-                            if len(top_news) >= max_count:
-                                break
+                # 3. 排序和筛选
+                logger.info("步骤 3/6: 对新闻进行排序和筛选...")
+                max_count = SCHEDULE_CONFIG.get('max_news_count', 10)
 
-                # 最终按分数排序，确保降序
-                top_news = sorted(top_news, key=lambda x: x.get('score', 0), reverse=True)[:max_count]
+                # 如果有市场分析，减少新闻数量以保持总数为10
+                news_count_needed = max_count - (1 if market_analysis else 0)
 
-            logger.info(f"最终筛选出 {len(top_news)} 条高质量新闻")
+                # 先排序，获取足够多的新闻
+                ranked_news = self.ranker.rank_news(news_list, top_n=news_count_needed * 3)
 
-            # 3. 生成摘要
-            logger.info("步骤 3/5: 生成新闻摘要...")
-            top_news = self.summarizer.batch_summarize(top_news)
+                # 如果新闻数量不足，记录警告
+                if len(ranked_news) < news_count_needed:
+                    logger.warning(f"收集到的新闻数量({len(ranked_news)})少于目标数量({news_count_needed})")
+                    top_news = ranked_news
+                else:
+                    # 在排名靠前的新闻中选择多样性
+                    top_news = self.ranker.diversify_selection(ranked_news, top_n=news_count_needed)
 
-            # 4. 生成HTML页面
-            logger.info("步骤 4/5: 生成HTML页面...")
+                    # 如果多样性选择后数量不足，补充高分新闻
+                    if len(top_news) < news_count_needed:
+                        logger.info(f"多样性选择后只有 {len(top_news)} 条，补充剩余新闻")
+                        remaining_needed = news_count_needed - len(top_news)
+                        selected_links = {news['link'] for news in top_news}
+                        for news in ranked_news:
+                            if news['link'] not in selected_links:
+                                top_news.append(news)
+                                if len(top_news) >= news_count_needed:
+                                    break
+
+                    # 最终按分数排序，确保降序
+                    top_news = sorted(top_news, key=lambda x: x.get('score', 0), reverse=True)[:news_count_needed]
+
+                logger.info(f"最终筛选出 {len(top_news)} 条高质量新闻")
+
+                # 4. 生成摘要
+                logger.info("步骤 4/6: 生成新闻摘要...")
+                top_news = self.summarizer.batch_summarize(top_news)
+
+                # 将市场分析插入到第一位
+                if market_analysis:
+                    top_news.insert(0, market_analysis)
+                    logger.info("已将市场分析插入到新闻列表第一位")
+
+            logger.info(f"准备推送 {len(top_news)} 条内容（包括市场分析）")
+
+            # 5. 生成HTML页面
+            logger.info("步骤 5/6: 生成HTML页面...")
             html_file = os.path.join(DATA_DIR, f"news_{datetime.now().strftime('%Y%m%d')}.html")
             self.html_gen.generate_html(top_news, html_file)
             logger.info(f"HTML页面已保存: {html_file}")
 
-            # 5. 推送到微信
-            logger.info("步骤 5/5: 推送新闻到微信...")
+            # 6. 推送到微信
+            logger.info("步骤 6/6: 推送新闻到微信...")
             success = self.notifier.send_news_notification(top_news)
 
             if success:

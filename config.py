@@ -10,10 +10,18 @@ NEWS_SOURCES = {
         'https://finance.yahoo.com/rss/',
         'https://www.cnbc.com/id/100003114/device/rss/rss.html',  # US Market News
         'https://feeds.marketwatch.com/marketwatch/topstories/',
+        'https://www.reuters.com/finance/markets',  # Reuters Markets
+        'https://seekingalpha.com/feed.xml',  # Seeking Alpha
+        'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC&region=US&lang=en-US',  # S&P 500 News
 
-        # AI 新闻
+        # AI/科技新闻
         'https://www.artificialintelligence-news.com/feed/',
         'https://www.technologyreview.com/feed/',
+        'https://www.theverge.com/rss/index.xml',  # The Verge
+        'https://arstechnica.com/feed/',  # Ars Technica
+        'https://venturebeat.com/feed/',  # VentureBeat
+        'https://www.wired.com/feed/rss',  # Wired
+        'https://techcrunch.com/feed/',  # TechCrunch
     ],
 
     # 可选：NewsAPI (需要API key)
